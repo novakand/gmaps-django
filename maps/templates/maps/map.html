@@ -1,0 +1,63 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <title>Google maps</title>
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    />
+
+    <link
+        rel="stylesheet"
+        href="{% static 'map/styles.css' %}"
+    >
+    <script src="{% static 'map/polyfills.js' %}"></script>
+</head>
+
+<body style="margin:0">
+    <div
+        id="map-host"
+        style="height:100svh;width:100%"
+    ></div>
+
+    <script>
+        function loadGmaps(key) {
+            return new Promise((resolve, reject) => {
+                const s = document.createElement('script');
+                s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&libraries=geometry,places,marker,drawing`;
+                s.async = true; s.defer = true;
+                s.onload = resolve; s.onerror = reject;
+                document.head.appendChild(s);
+            });
+        }
+
+        (async function init() {
+            const key = `{{ google_maps_key|escapejs }}`;
+
+            await loadGmaps(key);
+
+            await import("{% static 'map/main.js' %}");
+
+            await customElements.whenDefined('google-maps-widget');
+            let map;
+            const host = document.getElementById('map-host');
+            const el = document.createElement('google-maps-widget');
+            el.addEventListener('mapInitialized', e => map = e.detail);
+            el.addEventListener('click', e => console.log('click', e.detail));
+            el.addEventListener('idle', e => console.log('idle', map.getBounds()));
+            el.addEventListener('add_feature', e => console.log('add_feature', e.detail));
+            el.mapOptions = JSON.parse(`{{ map_options_json|safe }}`);
+
+            host.appendChild(el);
+
+            queueMicrotask(() => {
+                el.pointsObject = JSON.parse(`{{ points_fc_json|safe }}`);
+            });
+        })();
+    </script>
+</body>
+
+</html>
